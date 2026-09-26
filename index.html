@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChefFlow - Sistema de Restaurante & KDS</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        .kds-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-new {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased overflow-x-hidden selection:bg-brand-500 selection:text-white">
+
+    <!-- TOP NAVIGATION HEADER -->
+    <header class="bg-slate-800 border-b border-slate-700/80 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo & Brand -->
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-purple-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                        <i class="fa-solid font-black fa-utensils text-slate-900 text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                            CozinhaFlow <span class="text-xs px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-500 font-semibold border border-brand-500/30">PRO</span>
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="flex space-x-2 bg-slate-900/60 p-1.5 rounded-xl border border-slate-700/50">
+                    <button id="tab-waiter" onclick="switchTab('waiter')" 
+                            class="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-white bg-brand-600 shadow-md">
+                        <i class="fa-solid fa-receipt"></i>
+                        <span>Atendimento (Garçom)</span>
+                    </button>
+                    <button id="tab-kitchen" onclick="switchTab('kitchen')" 
+                            class="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800">
+                        <i class="fa-solid fa-fire-burner"></i>
+                        <span>Cozinha (KDS)</span>
+                        <span id="kitchen-badge" class="hidden ml-1 px-2 py-0.5 text-xs font-bold bg-amber-500 text-slate-900 rounded-full">0</span>
+                    </button>
+                </nav>
+
+                <!-- System Actions & Clock -->
+                <div class="hidden md:flex items-center space-x-4 text-xs font-medium text-slate-400">
+                    <div id="live-clock" class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700/50 text-slate-300 font-mono">
+                        00:00:00
+                    </div>
+                    <button onclick="resetData()" title="Resetar Pedidos de Teste" class="text-slate-400 hover:text-red-400 transition-colors p-2 rounded-lg hover:bg-slate-800">
+                        <i class="fa-solid fa-trash-arrow-up text-base"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINERS -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
+
+        <!-- VIEW 1: WAITER / POS MODULE -->
+        <section id="view-waiter" class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- LEFT COLUMN: MENU & CATEGORIES (7 Cols) -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- Identification Card -->
+                <div class="bg-slate-800/80 backdrop-blur border border-slate-700/70 rounded-2xl p-4 shadow-xl">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Identificação da Mesa / Cliente</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-chair"></i>
+                            </span>
+                            <input type="text" id="table-input" placeholder="Nº da Mesa (Ex: Mesa 04)" 
+                                   class="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 font-medium text-sm transition">
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                                <i class="fa-solid fa-user"></i>
+                            </span>
+                            <input type="text" id="customer-input" placeholder="Nome do Cliente (Opcional)" 
+                                   class="w-full pl-10 pr-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 font-medium text-sm transition">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Filters -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none" id="categories-container">
+                    <!-- Dynamic categories injected by JS -->
+                </div>
+
+                <!-- Product Catalog Grid -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 flex-1 overflow-y-auto max-h-[calc(100vh-320px)] pr-1" id="products-grid">
+                    <!-- Products injected by JS -->
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: CURRENT CART / ORDER SUMMARY (5 Cols) -->
+            <div class="lg:col-span-5 flex flex-col">
+                <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl shadow-xl flex flex-col h-full overflow-hidden">
+                    
+                    <!-- Header -->
+                    <div class="px-5 py-4 border-b border-slate-700/70 bg-slate-800 flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <i class="fa-solid fa-cart-flatbed text-brand-500 text-lg"></i>
+                            <h2 class="font-bold text-slate-100 text-lg">Comanda Atual</h2>
+                        </div>
+                        <button onclick="clearCurrentCart()" class="text-xs text-slate-400 hover:text-red-400 transition flex items-center gap-1 bg-slate-900/60 px-2.5 py-1.5 rounded-lg border border-slate-700">
+                            <i class="fa-solid fa-trash"></i> Limpar
+                        </button>
+                    </div>
+
+                    <!-- Cart Items Container -->
+                    <div class="flex-1 overflow-y-auto p-5 space-y-3" id="cart-items-container">
+                        <!-- Dynamic items -->
+                    </div>
+
+                    <!-- Order Notes & Send Section -->
+                    <div class="p-5 border-t border-slate-700/70 bg-slate-900/40 space-y-4">
+                        <div>
+                            <label for="order-notes" class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1.5">
+                                <i class="fa-regular fa-comment-dots text-brand-500"></i> Observações da Cozinha
+                            </label>
+                            <textarea id="order-notes" rows="2" placeholder="Ex: Sem cebola no hambúrguer, molho à parte..." 
+                                      class="w-full px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none transition"></textarea>
+                        </div>
+
+                        <!-- Subtotal & Total -->
+                        <div class="space-y-1.5 pt-2 border-t border-slate-800">
+                            <div class="flex justify-between text-sm text-slate-400">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal" class="font-mono">R$ 0,00</span>
+                            </div>
+                            <div class="flex justify-between text-lg font-extrabold text-white">
+                                <span>Total Pedido</span>
+                                <span id="cart-total" class="text-brand-500 font-mono">R$ 0,00</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <button onclick="sendOrderToKitchen()" 
+                                class="w-full py-3.5 px-4 bg-gradient-to-r from-brand-600 to-purple-600 hover:from-brand-500 hover:to-purple-600 text-slate-950 font-extrabold rounded-xl shadow-lg shadow-brand-600/25 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 text-base">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>ENVIAR PARA A COZINHA</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
+        <!-- VIEW 2: KITCHEN DISPLAY SYSTEM (KDS) -->
+        <section id="view-kitchen" class="flex-1 hidden flex-col space-y-6">
+            
+            <!-- KDS Control Bar -->
+            <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-lg">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-sm font-bold text-slate-200 uppercase tracking-wide">Painel KDS Ativo</span>
+                    </div>
+                    <div class="text-xs text-slate-400 border-l border-slate-700 pl-4 hidden sm:block">
+                        Sincronizado via LocalStorage
+                    </div>
+                </div>
+
+                <!-- Filters & Stats -->
+                <div class="flex items-center space-x-3 text-xs">
+                    <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 text-amber-400 font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-clock"></i> Pendentes: <span id="count-pending">0</span>
+                    </div>
+                    <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 text-blue-400 font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-fire"></i> Preparando: <span id="count-preparing">0</span>
+                    </div>
+                    <div class="bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-700 text-emerald-400 font-semibold flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-check"></i> Prontos: <span id="count-ready">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Grid Container -->
+            <div id="kitchen-orders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <!-- Kitchen order cards dynamically injected here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="kitchen-empty-state" class="hidden flex-1 flex-col items-center justify-center py-16 text-center text-slate-500">
+                <div class="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center mb-4 text-slate-600">
+                    <i class="fa-solid fa-utensils text-3xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-300">Sem pedidos pendentes no momento</h3>
+                <p class="text-sm max-w-sm mt-1">Novos pedidos feitos no módulo de atendimento aparecerão aqui instantaneamente.</p>
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        // --- DATA STATE ---
+        const PRODUCTS = [
+            { id: 1, name: "Hambúrguer Artesanal", price: 34.90, category: "pratos", icon: "fa-burger", image: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=300" },
+            { id: 2, name: "Filé Parmegiana", price: 48.00, category: "pratos", icon: "fa-drumstick-bite", image: "https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=300" },
+            { id: 3, name: "Pizza Pepperoni (Média)", price: 52.90, category: "pratos", icon: "fa-pizza-slice", image: "https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=300" },
+            { id: 3, name: "Batata Frita Suprema", category: "acompanhamentos", price: 28.00, image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500", description: "Porção crocante com cheddar e bacon ralado" },
+            { id: 5, name: "Anéis de Cebola Crocantes", price: 19.90, category: "acompanhamentos", icon: "fa-circle-notch", image: "https://images.unsplash.com/photo-1639024471283-03518883512d?w=300" },
+            { id: 6, name: "Refrigerante Lata", price: 7.00, category: "bebidas", icon: "fa-can-food", image: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=300" },
+            { id: 7, name: "Suco Natural Laranja 500ml", price: 11.50, category: "bebidas", icon: "fa-glass-water", image: "https://images.unsplash.com/photo-1613478223719-2ab802602423?w=300" },
+            { id: 8, name: "Cerveja IPA 500ml", price: 18.00, category: "bebidas", icon: "fa-beer-mug-empty", image: "https://images.unsplash.com/photo-1608270586620-248524c67de9?w=300" },
+            { id: 9, name: "Petit Gâteau com Sorvete", price: 26.90, category: "sobremesas", icon: "fa-ice-cream", image: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=300" },
+            { id: 10, name: "Macaron", price: 14.00, category: "sobremesas", icon: "fa-cookie", image: "https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?w=300" }
+        ];
+
+        const CATEGORIES = [
+            { id: 'todos', label: 'Todos', icon: 'fa-border-all' },
+            { id: 'pratos', label: 'Pratos Principais', icon: 'fa-utensils' },
+            { id: 'acompanhamentos', label: 'Acompanhamentos', icon: 'fa-bowl-food' },
+            { id: 'bebidas', label: 'Bebidas', icon: 'fa-wine-glass' },
+            { id: 'sobremesas', label: 'Sobremesas', icon: 'fa-ice-cream' }
+        ];
+
+        let selectedCategory = 'todos';
+        let currentCart = [];
+        let orders = [];
+
+        // --- SOUND EFFECTS (Web Audio API) ---
+        function playNotificationSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+                
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            } catch(e) {
+                console.log('Audio playback prevented or unsupported');
+            }
+        }
+
+        // --- STORAGE MANAGEMENT ---
+        function loadOrdersFromStorage() {
+            const stored = localStorage.getItem('chefflow_orders');
+            if (stored) {
+                try {
+                    orders = JSON.parse(stored);
+                } catch(e) {
+                    orders = [];
+                }
+            } else {
+                // Initial demo order
+                orders = [
+                    {
+                        id: 'PED-' + Math.floor(1000 + Math.random() * 9000),
+                        table: 'Mesa 02',
+                        customer: 'João Silva',
+                        items: [
+                            { name: 'Hambúrguer Artesanal', quantity: 2, price: 34.90 },
+                            { name: 'Batata Frita Rustica', quantity: 1, price: 22.00 },
+                            { name: 'Refrigerante Lata', quantity: 2, price: 7.00 }
+                        ],
+                        total: 105.80,
+                        notes: 'Hambúrguer sem tomate, carne ao ponto.',
+                        status: 'pending', // pending, preparing, ready
+                        timestamp: Date.now() - 1000 * 60 * 4 // 4 mins ago
+                    }
+                ];
+                saveOrdersToStorage();
+            }
+            renderKitchenOrders();
+        }
+
+        function saveOrdersToStorage() {
+            localStorage.setItem('chefflow_orders', JSON.stringify(orders));
+            // Trigger storage event manually for current window listeners if needed
+            renderKitchenOrders();
+        }
+
+        // Listen for updates from other tabs
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'chefflow_orders') {
+                const oldLength = orders.length;
+                orders = JSON.parse(e.newValue || '[]');
+                renderKitchenOrders();
+                
+                // If a new order was added in another tab while in kitchen view
+                if (orders.length > oldLength) {
+                    playNotificationSound();
+                }
+            }
+        });
+
+        // --- RENDER WAITER MODULE ---
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = CATEGORIES.map(cat => `
+                <button onclick="filterCategory('${cat.id}')" 
+                        class="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all whitespace-nowrap ${
+                            selectedCategory === cat.id 
+                            ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30' 
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200 border border-slate-700/60'
+                        }">
+                    <i class="fa-solid ${cat.icon}"></i>
+                    <span>${cat.label}</span>
+                </button>
+            `).join('');
+        }
+
+        function filterCategory(catId) {
+            selectedCategory = catId;
+            renderCategories();
+            renderProducts();
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('products-grid');
+            const filtered = selectedCategory === 'todos' 
+                ? PRODUCTS 
+                : PRODUCTS.filter(p => p.category === selectedCategory);
+
+            grid.innerHTML = filtered.map(product => `
+                <div class="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-3.5 flex flex-col justify-between hover:border-slate-600 transition duration-200 group">
+                    <div class="relative h-32 w-full rounded-xl overflow-hidden mb-3 bg-slate-900">
+                        <img src="${product.image}" alt="${product.name}" onerror="this.src='https://placehold.co/300x200/1e293b/a1a1aa?text=Sem+Imagem'" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        <span class="absolute top-2 right-2 bg-slate-900/80 backdrop-blur text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-slate-700 font-mono">
+                            R$ ${product.price.toFixed(2).replace('.', ',')}
+                        </span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-100 text-sm leading-snug line-clamp-1">${product.name}</h3>
+                        <p class="text-xs text-slate-400 capitalize mt-0.5">${product.category}</p>
+                    </div>
+                    <button onclick="addToCart(${product.id})" 
+                            class="mt-3 w-full py-2 bg-slate-700 hover:bg-brand-600 text-slate-200 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95">
+                        <i class="fa-solid fa-plus"></i> Adicionar
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addToCart(productId) {
+            const product = PRODUCTS.find(p => p.id === productId);
+            if (!product) return;
+
+            const existing = currentCart.find(item => item.id === productId);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                currentCart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1
+                });
+            }
+            renderCart();
+        }
+
+        function updateQuantity(productId, delta) {
+            const item = currentCart.find(i => i.id === productId);
+            if (!item) return;
+
+            item.quantity += delta;
+            if (item.quantity <= 0) {
+                currentCart = currentCart.filter(i => i.id !== productId);
+            }
+            renderCart();
+        }
+
+        function clearCurrentCart() {
+            currentCart = [];
+            document.getElementById('order-notes').value = '';
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('cart-total');
+
+            if (currentCart.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center text-slate-500 py-12">
+                        <i class="fa-solid fa-basket-shopping text-4xl mb-3 text-slate-600"></i>
+                        <p class="text-sm font-medium">Sua comanda está vazia</p>
+                        <p class="text-xs mt-1">Selecione itens ao lado para iniciar</p>
+                    </div>
+                `;
+                subtotalEl.innerText = 'R$ 0,00';
+                totalEl.innerText = 'R$ 0,00';
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = currentCart.map(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                return `
+                    <div class="bg-slate-900/80 border border-slate-700/60 p-3 rounded-xl flex items-center justify-between gap-3">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-slate-200 truncate">${item.name}</h4>
+                            <p class="text-xs text-brand-500 font-mono mt-0.5">R$ ${item.price.toFixed(2).replace('.', ',')}</p>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-800 rounded-lg p-1 border border-slate-700">
+                            <button onclick="updateQuantity(${item.id}, -1)" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-white rounded hover:bg-slate-700 text-xs font-bold transition">
+                                <i class="fa-solid fa-minus"></i>
+                            </button>
+                            <span class="text-xs font-bold text-white w-4 text-center font-mono">${item.quantity}</span>
+                            <button onclick="updateQuantity(${item.id}, 1)" class="w-6 h-6 flex items-center justify-center text-slate-400 hover:text-white rounded hover:bg-slate-700 text-xs font-bold transition">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            subtotalEl.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+            totalEl.innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
+        function sendOrderToKitchen() {
+            const tableInput = document.getElementById('table-input');
+            const customerInput = document.getElementById('customer-input');
+            const notesInput = document.getElementById('order-notes');
+
+            const table = tableInput.value.trim();
+            const customer = customerInput.value.trim();
+            const notes = notesInput.value.trim();
+
+            if (!table) {
+                showToast("Por favor, preencha o número da mesa!", "error");
+                tableInput.focus();
+                return;
+            }
+
+            if (currentCart.length === 0) {
+                showToast("Adicione pelo menos um item ao pedido!", "error");
+                return;
+            }
+
+            const total = currentCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+            const newOrder = {
+                id: 'PED-' + Math.floor(1000 + Math.random() * 9000),
+                table: table,
+                customer: customer || 'Não Informado',
+                items: [...currentCart],
+                total: total,
+                notes: notes,
+                status: 'pending', // pending -> preparing -> ready
+                timestamp: Date.now()
+            };
+
+            orders.unshift(newOrder);
+            saveOrdersToStorage();
+            playNotificationSound();
+
+            // Reset Form
+            clearCurrentCart();
+            tableInput.value = '';
+            customerInput.value = '';
+
+            showToast("Pedido enviado para a cozinha com sucesso!", "success");
+        }
+
+        // --- RENDER KITCHEN MODULE (KDS) ---
+        function renderKitchenOrders() {
+            const grid = document.getElementById('kitchen-orders-grid');
+            const emptyState = document.getElementById('kitchen-empty-state');
+            const badge = document.getElementById('kitchen-badge');
+
+            // Counter badges
+            const pendingCount = orders.filter(o => o.status === 'pending').length;
+            const prepCount = orders.filter(o => o.status === 'preparing').length;
+            const readyCount = orders.filter(o => o.status === 'ready').length;
+
+            document.getElementById('count-pending').innerText = pendingCount;
+            document.getElementById('count-preparing').innerText = prepCount;
+            document.getElementById('count-ready').innerText = readyCount;
+
+            if (pendingCount > 0) {
+                badge.innerText = pendingCount;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            if (orders.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            emptyState.classList.remove('flex');
+
+            grid.innerHTML = orders.map(order => {
+                const timeAgo = Math.floor((Date.now() - order.timestamp) / 1000 / 60); // minutes
+                
+                let statusBg = 'bg-amber-500/10 border-amber-500/50';
+                let statusHeader = 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+                let statusTitle = 'Pendente';
+                let pulseClass = 'pulse-new';
+                let actionButton = `
+                    <button onclick="updateOrderStatus('${order.id}', 'preparing')" 
+                            class="w-full py-2.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-fire"></i> Iniciar Preparo
+                    </button>
+                `;
+
+                if (order.status === 'preparing') {
+                    statusBg = 'bg-blue-500/10 border-blue-500/50';
+                    statusHeader = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                    statusTitle = 'Em Preparo';
+                    pulseClass = '';
+                    actionButton = `
+                        <button onclick="updateOrderStatus('${order.id}', 'ready')" 
+                                class="w-full py-2.5 px-3 bg-blue-500 hover:bg-blue-400 text-slate-950 font-extrabold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-check"></i> Marcar como Pronto
+                        </button>
+                    `;
+                } else if (order.status === 'ready') {
+                    statusBg = 'bg-emerald-500/10 border-emerald-500/50';
+                    statusHeader = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
+                    statusTitle = 'Pronto para Servir';
+                    pulseClass = '';
+                    actionButton = `
+                        <button onclick="removeOrder('${order.id}')" 
+                                class="w-full py-2.5 px-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-box-archive"></i> Concluir / Entregue
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="kds-card bg-slate-800 border-2 ${statusBg} rounded-2xl flex flex-col justify-between overflow-hidden shadow-xl ${pulseClass}">
+                        <div>
+                            <!-- Header Info -->
+                            <div class="p-3.5 border-b border-slate-700/80 flex items-center justify-between">
+                                <div>
+                                    <h3 class="font-black text-white text-base flex items-center gap-2">
+                                        <i class="fa-solid fa-chair text-brand-500"></i> ${order.table}
+                                    </h3>
+                                    <p class="text-xs text-slate-400 mt-0.5"><i class="fa-regular fa-user"></i> ${order.customer}</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="px-2.5 py-1 rounded-lg border text-[11px] font-extrabold uppercase tracking-wider ${statusHeader}">
+                                        ${statusTitle}
+                                    </span>
+                                    <p class="text-[11px] font-mono text-slate-400 mt-1 flex items-center justify-end gap-1">
+                                        <i class="fa-regular fa-clock"></i> há ${timeAgo}m
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Items List -->
+                            <div class="p-4 space-y-2.5">
+                                ${order.items.map(item => `
+                                    <div class="flex items-start justify-between text-xs border-b border-slate-700/40 pb-2">
+                                        <span class="font-bold text-slate-200">${item.name}</span>
+                                        <span class="font-extrabold text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20 font-mono">
+                                            x${item.quantity}
+                                        </span>
+                                    </div>
+                                me`).join('')}
+
+                                <!-- Notes if present -->
+                                ${order.notes ? `
+                                    <div class="mt-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 text-xs text-amber-200">
+                                        <span class="font-bold uppercase tracking-wider block text-[10px] text-amber-400 mb-0.5">
+                                            <i class="fa-solid fa-triangle-exclamation"></i> Obs:
+                                        </span>
+                                        ${order.notes}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+
+                        <!-- Card Footer Action -->
+                        <div class="p-3.5 bg-slate-900/60 border-t border-slate-700/60">
+                            ${actionButton}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            const order = orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = newStatus;
+                saveOrdersToStorage();
+            }
+        }
+
+        function removeOrder(orderId) {
+            orders = orders.filter(o => o.id !== orderId);
+            saveOrdersToStorage();
+            showToast("Pedido finalizado com sucesso!", "info");
+        }
+
+        function resetData() {
+            if (confirm("Deseja apagar todos os pedidos atuais?")) {
+                orders = [];
+                saveOrdersToStorage();
+                showToast("Dados reiniciados!", "info");
+            }
+        }
+
+        // --- NAVIGATION TABS ---
+        function switchTab(tab) {
+            const waiterBtn = document.getElementById('tab-waiter');
+            const kitchenBtn = document.getElementById('tab-kitchen');
+            const waiterView = document.getElementById('view-waiter');
+            const kitchenView = document.getElementById('view-kitchen');
+
+            if (tab === 'waiter') {
+                waiterView.classList.remove('hidden');
+                waiterView.classList.add('grid');
+                kitchenView.classList.add('hidden');
+                kitchenView.classList.remove('flex');
+
+                waiterBtn.className = "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-white bg-brand-600 shadow-md";
+                kitchenBtn.className = "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800";
+            } else {
+                kitchenView.classList.remove('hidden');
+                kitchenView.classList.add('flex');
+                waiterView.classList.add('hidden');
+                waiterView.classList.remove('grid');
+
+                kitchenBtn.className = "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-white bg-brand-600 shadow-md";
+                waiterBtn.className = "flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 text-slate-400 hover:text-white hover:bg-slate-800";
+            }
+        }
+
+        // --- REALTIME CLOCK ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('live-clock').innerText = now.toLocaleTimeString('pt-BR');
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Refresh timers in kitchen view every minute
+        setInterval(() => {
+            if (!document.getElementById('view-kitchen').classList.contains('hidden')) {
+                renderKitchenOrders();
+            }
+        }, 30000);
+
+        // --- CUSTOM TOAST NOTIFICATIONS ---
+        function showToast(message, type = "info") {
+            const toast = document.createElement('div');
+            let icon = 'fa-circle-info';
+            let bg = 'bg-slate-800 border-slate-700 text-slate-100';
+
+            if (type === 'success') {
+                icon = 'fa-circle-check';
+                bg = 'bg-emerald-950 border-emerald-700 text-emerald-200';
+            } else if (type === 'error') {
+                icon = 'fa-circle-xmark';
+                bg = 'bg-red-950 border-red-700 text-red-200';
+            }
+
+            toast.className = `fixed bottom-5 right-5 z-50 flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl transition-all duration-300 transform translate-y-10 opacity-0 ${bg}`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span class="text-sm font-bold">${message}</span>`;
+
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-10', 'opacity-0');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- INIT APP ---
+        window.onload = function() {
+            renderCategories();
+            renderProducts();
+            renderCart();
+            loadOrdersFromStorage();
+        };
+    </script>
+</body>
+</html>
